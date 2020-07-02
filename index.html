@@ -29,17 +29,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     <link rel='icon' type='image/png' sizes='96x96' href='favicon-96x96.png'>
     <link rel='stylesheet' href='css/common.css'>
 
-    <title>Hit Test</title>
+    <title>Web AR Simulator</title>
   </head>
   <body>
     <header>
-      <details open>
-        <summary>Hit Test</summary>
-        <p>
-          This sample demonstrates use of hit testing to place virtual objects on real-world surfaces.
-          <a class="back" href="./">Back</a>
-        </p>
-      </details>
     </header>
     <script type="module">
       import {WebXRButton} from './js/util/webxr-button.js';
@@ -52,6 +45,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
       import {Ray} from './js/render/math/ray.js';
 
       // XR globals.
+      let xrButton = null;
       let xrRefSpace = null;
       let xrViewerSpace = null;
       let xrHitTestSource = null;
@@ -86,15 +80,19 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
       scene.clear = false;
 
       function initXR() {
+        xrButton = new WebXRButton({
+          onRequestSession: onRequestSession,
+          onEndSession: onEndSession,
+          textEnterXRTitle: "START AR",
+          textXRNotFoundTitle: "AR NOT FOUND",
+          textExitXRTitle: "EXIT  AR",
+        });
+        document.querySelector('header').appendChild(xrButton.domElement);
+
         if (navigator.xr) {
           navigator.xr.isSessionSupported('immersive-ar')
                       .then((supported) => {
-            if (supported) {
-              onRequestSession();
-            }
-            else {
-              alert('not supported.');
-            }
+            xrButton.enabled = supported;
           });
         }
       }
@@ -102,11 +100,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
       function onRequestSession() {
         return navigator.xr.requestSession('immersive-ar', {requiredFeatures: ['local', 'hit-test']})
                            .then((session) => {
+          xrButton.setSession(session);
           onSessionStarted(session);
         });
       }
 
       function onSessionStarted(session) {
+        session.addEventListener('end', onSessionEnded);
         session.addEventListener('select', onSelect);
 
         if (!gl) {
@@ -143,6 +143,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
         xrHitTestSource.cancel();
         xrHitTestSource = null;
         session.end();
+      }
+
+      function onSessionEnded(event) {
+        xrButton.setSession(null);
       }
 
       // Adds a new object to the scene at the
